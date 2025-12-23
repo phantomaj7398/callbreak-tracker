@@ -12,16 +12,31 @@ SAVE_FILE = "game_state.json"
 suits = ["♠", "♥", "♦", "♣"]
 ranks = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"]
 
-# ---------- CSS (TIGHT SPACING) ----------
+# ---------- CSS (MAXIMUM COMPRESSION + COLORS) ----------
 st.markdown("""
 <style>
+/* tighten vertical spacing */
 div[data-testid="stMarkdown"] p {
-    margin-bottom: 0.2rem;
+    margin-bottom: 0.15rem;
 }
+
+/* ultra-tight buttons */
 button {
-    padding: 0.25rem !important;
-    font-size: 0.8rem !important;
+    padding: 0.15rem !important;
+    font-size: 0.75rem !important;
+    min-width: unset !important;
 }
+
+/* remove extra column padding */
+div[data-testid="column"] {
+    padding-left: 0.1rem !important;
+    padding-right: 0.1rem !important;
+}
+
+/* card colors */
+.red { color: #d32f2f; font-weight: bold; }
+.black { color: #000000; font-weight: bold; }
+.used { color: #9e9e9e; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -61,16 +76,27 @@ def undo():
         save_state()
         st.rerun()
 
-# ---------- ROUNDS (NO HEADINGS) ----------
+def card_class(card):
+    if card in st.session_state.plays:
+        return "used"
+    return "red" if card[-1] in ["♥", "♦"] else "black"
+
+# ---------- ROUNDS (TOP, FAST RENDER) ----------
 total_rounds = (len(st.session_state.plays) + 3) // 4
 
 for r in range(total_rounds):
     start = r * 4
     cards = st.session_state.plays[start:start + 4]
     if cards:
-        st.markdown(" ".join(cards))
+        st.markdown(
+            " ".join(
+                f"<span class='{card_class(c)}'>{c}</span>"
+                for c in cards
+            ),
+            unsafe_allow_html=True
+        )
 
-# ---------- CARD GRID (4 × 13) ----------
+# ---------- CARD GRID (4 × 13, TIGHT) ----------
 st.divider()
 
 for suit in suits:
@@ -78,6 +104,7 @@ for suit in suits:
     for i, rank in enumerate(ranks):
         card = f"{rank}{suit}"
         used = card_used(card)
+
         label = "❌" if used else card
 
         if cols[i].button(
@@ -90,7 +117,6 @@ for suit in suits:
 # ---------- CONTROLS ----------
 st.divider()
 c1, c2 = st.columns(2)
-
 c1.button("↩ Undo", on_click=undo)
 
 def reset_game():
