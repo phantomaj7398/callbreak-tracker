@@ -12,6 +12,19 @@ SAVE_FILE = "game_state.json"
 suits = ["♠", "♥", "♦", "♣"]
 ranks = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"]
 
+# ---------- CSS (TIGHT SPACING) ----------
+st.markdown("""
+<style>
+div[data-testid="stMarkdown"] p {
+    margin-bottom: 0.2rem;
+}
+button {
+    padding: 0.25rem !important;
+    font-size: 0.8rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ---------- SAVE / LOAD ----------
 def save_state():
     with open(SAVE_FILE, "w") as f:
@@ -48,26 +61,23 @@ def undo():
         save_state()
         st.rerun()
 
-# ---------- ROUNDS VIEW ----------
-st.markdown("### Rounds")
-
+# ---------- ROUNDS (NO HEADINGS) ----------
 total_rounds = (len(st.session_state.plays) + 3) // 4
 
 for r in range(total_rounds):
     start = r * 4
     cards = st.session_state.plays[start:start + 4]
-    cards_text = " ".join(cards)
-    st.markdown(f"Round {r + 1}: {cards_text}")
+    if cards:
+        st.markdown(" ".join(cards))
 
-# ---------- CARD GRID (13 × 4, COMPACT) ----------
+# ---------- CARD GRID (4 × 13) ----------
 st.divider()
 
-for rank in ranks:
-    cols = st.columns(4, gap="small")
-    for i, suit in enumerate(suits):
+for suit in suits:
+    cols = st.columns(len(ranks), gap="small")
+    for i, rank in enumerate(ranks):
         card = f"{rank}{suit}"
         used = card_used(card)
-
         label = "❌" if used else card
 
         if cols[i].button(
