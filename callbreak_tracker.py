@@ -9,7 +9,7 @@ SAVE_FILE = "game_state.json"
 players = ["A", "B", "C", "D"]
 suits = ["♠", "♥", "♦", "♣"]
 ranks = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"]
-rank_value = {r: i for i, r in enumerate(ranks[::-1])}  # higher = stronger
+rank_power = {r: i for i, r in enumerate(ranks[::-1])}
 
 TRUMP = "♠"
 
@@ -17,8 +17,8 @@ TRUMP = "♠"
 st.markdown("""
 <style>
 html, body, [data-testid="stApp"] {
-    background-color: #ffffff !important;
-    color: #000000 !important;
+    background-color: white !important;
+    color: black !important;
 }
 button {
     background: transparent !important;
@@ -26,10 +26,6 @@ button {
     box-shadow: none !important;
     padding: 0.1rem !important;
     font-size: 0.95rem !important;
-}
-button:hover, button:focus, button:active {
-    background: transparent !important;
-    outline: none !important;
 }
 div[data-testid="column"] {
     padding-left: 0.05rem !important;
@@ -42,106 +38,102 @@ div[data-testid="stMarkdown"] p {
 """, unsafe_allow_html=True)
 
 # ---------- SAVE / LOAD ----------
-def save_state():
-    with open(SAVE_FILE, "w") as f:
-        json.dump(st.session_state.state, f)
+def save_state(plays):
+    try:
+        with open(SAVE_FILE, "w") as f:
+            json.dump(plays, f)
+    except Exception:
+        pass  # never crash UI due to IO
 
 def load_state():
     if not os.path.exists(SAVE_FILE):
-        return None
+        return []
     try:
         with open(SAVE_FILE, "r") as f:
-            return json.load(f)
-    except json.JSONDecodeError:
-        return None
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+# ---------- INIT ----------
+if "plays" not in st.session_state:
+    st.session_state.plays = load_state()
+
+plays = st.session_state.plays
 
 # ---------- GAME LOGIC ----------
 def card_strength(card, lead_suit):
-    rank = card[:-1]
-    suit = card[-1]
-
+    rank, suit = card[:-1], card[-1]
     if suit == TRUMP:
-        return 100 + rank_value[rank]
+        return 100 + rank_power[rank]
     if suit == lead_suit:
-        return 50 + rank_value[rank]
-    return rank_value[rank]
+        return 50 + rank_power[rank]
+    return rank_power[rank]
 
-def trick_winner(cards, starter_index):
+def determine_winner(cards, starter):
     lead_suit = cards[0][-1]
     strengths = [card_strength(c, lead_suit) for c in cards]
     winner_offset = strengths.index(max(strengths))
-    return (starter_index + winner_offset) % 4
+    return (starter + winner_offset) % 4
 
-# ---------- INIT ----------
-if "state" not in st.session_state:
-    saved = load_state()
-    if saved:
-        st.session_state.state = saved
-    else:
-        st.session_state.state = {
-            "rounds": [],        # list of {starter, cards, winner}
-            "current": {
-                "starter": 0,    # index in players
-                "cards": []
-            }
-        }
+# ---------- REBUILD ROUNDS (PURE FUNCTION) ----------
+def rebuild_rounds(plays):
+    rounds = []
+    starter = 0  # A always starts first round
+    i = 0
 
-state = st.session_state.state
+    while i < len(plays):
+        chunk = plays[i:i + 4]
+
+        if len(chunk) < 4:
+            rounds.append({
+                "starter": starter,
+                "cards": chunk
+            })
+            break
+
+        winner = determine_winner(chunk, starter)
+        rounds.append({
+            "starter": starter,
+            "cards": chunk
+        })
+
+        starter = winner
+        i += 4
+
+    return rounds
+
+rounds = rebuild_rounds(plays)
 
 # ---------- HELPERS ----------
 def add_card(card):
-    state["current"]["cards"].append(card)
-
-    if len(state["current"]["cards"]) == 4:
-        starter = state["current"]["starter"]
-        cards = state["current"]["cards"]
-
-        winner = trick_winner(cards, starter)
-
-        state["rounds"].append({
-            "starter": starter,
-            "cards": cards,
-            "winner": winner
-        })
-
-        state["current"] = {
-            "starter": winner,
-            "cards": []
-        }
-
-    save_state()
-    st.rerun()
+    if card not in plays:
+        plays.append(card)
+        save_state(plays)
+        st.rerun()
 
 def undo():
-    if state["current"]["cards"]:
-        state["current"]["cards"].pop()
-    elif state["rounds"]:
-        last = state["rounds"].pop()
-        state["current"] = {
-            "starter": last["starter"],
-            "cards": last["cards"][:-1]
-        }
-    save_state()
-    st.rerun()
+    if plays:
+        plays.pop()
+        save_state(plays)
+        st.rerun()
+
+def reset():
+    try:
+        if os.path.exists(SAVE_FILE):
+            os.remove(SAVE_FILE)
+    finally:
+        st.session_state.clear()
+        st.rerun()
 
 def used_cards():
-    used = []
-    for r in state["rounds"]:
-        used.extend(r["cards"])
-    used.extend(state["current"]["cards"])
-    return set(used)
+    return set(plays)
 
-# ---------- DISPLAY ROUNDS ----------
-for r in state["rounds"]:
-    starter = players[r["starter"]]
+# ---------- DISPLAY ----------
+for r in rounds:
+    starter_letter = players[r["starter"]]
     cards = " ".join(r["cards"])
-    st.markdown(f"**{starter} →** {cards}")
-
-# current round
-if state["current"]["cards"]:
-    starter = players[state["current"]["starter"]]
-    cards = " ".join(state["current"]["cards"])
-    st.markdown(f"**{starter} →** {cards}")
+    st.markdown(f"**{starter_letter} →** {cards}")
 
 # ---------- CARD GRID ----------
 st.divider()
@@ -151,22 +143,16 @@ for suit in suits:
     cols = st.columns(len(ranks), gap="small")
     for i, rank in enumerate(ranks):
         card = f"{rank}{suit}"
-        if cols[i].button(
+        cols[i].button(
             "❌" if card in used else card,
             key=card,
-            disabled=card in used
-        ):
-            add_card(card)
+            disabled=card in used,
+            on_click=add_card,
+            args=(card,)
+        )
 
 # ---------- CONTROLS ----------
 st.divider()
 c1, c2 = st.columns(2)
 c1.button("↩ Undo", on_click=undo)
-
-def reset():
-    if os.path.exists(SAVE_FILE):
-        os.remove(SAVE_FILE)
-    st.session_state.clear()
-    st.rerun()
-
 c2.button("🔄 Reset", on_click=reset)
