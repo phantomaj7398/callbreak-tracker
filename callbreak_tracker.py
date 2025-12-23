@@ -15,33 +15,43 @@ ranks = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"]
 # ---------- CSS (MAXIMUM COMPRESSION + COLORS) ----------
 st.markdown("""
 <style>
-/* force pure white background */
+/* ===== FORCE WHITE BACKGROUND ===== */
 html, body, [data-testid="stApp"] {
-    background-color: white !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
 }
 
-/* remove button chrome */
+/* ===== ROUND TEXT COLORS ===== */
+.red { color: #c62828; font-weight: bold; }
+.black { color: #000000; font-weight: bold; }
+.used { color: #9e9e9e; }
+
+/* ===== BUTTONS: TEXT-ONLY LOOK ===== */
 button {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
     padding: 0.1rem !important;
     font-size: 0.95rem !important;
+    color: #000000 !important;
 }
 
-/* no hover box */
-button:hover, button:focus, button:active {
+/* remove hover / focus visuals */
+button:hover,
+button:focus,
+button:active {
     background: transparent !important;
     outline: none !important;
+    box-shadow: none !important;
 }
 
-/* tighter columns */
+/* ===== TIGHT GRID ===== */
 div[data-testid="column"] {
     padding-left: 0.05rem !important;
     padding-right: 0.05rem !important;
 }
 
-/* compact lines */
+/* ===== REDUCE LINE GAPS ===== */
 div[data-testid="stMarkdown"] p {
     margin-bottom: 0.1rem;
 }
