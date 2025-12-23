@@ -15,27 +15,39 @@ ranks = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"]
 # ---------- CSS (MAXIMUM COMPRESSION + COLORS) ----------
 st.markdown("""
 <style>
-/* tighten vertical spacing */
-div[data-testid="stMarkdown"] p {
-    margin-bottom: 0.15rem;
-}
-
-/* ultra-tight buttons */
+/* remove all visual button chrome */
 button {
-    padding: 0.15rem !important;
-    font-size: 0.75rem !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0.1rem !important;
+    font-size: 0.95rem !important;
     min-width: unset !important;
 }
 
-/* remove extra column padding */
-div[data-testid="column"] {
-    padding-left: 0.1rem !important;
-    padding-right: 0.1rem !important;
+/* remove hover / focus box */
+button:hover,
+button:focus,
+button:active {
+    background: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
-/* card colors */
+/* tighten column spacing */
+div[data-testid="column"] {
+    padding-left: 0.05rem !important;
+    padding-right: 0.05rem !important;
+}
+
+/* compact rounds text */
+div[data-testid="stMarkdown"] p {
+    margin-bottom: 0.1rem;
+}
+
+/* colors */
 .red { color: #d32f2f; font-weight: bold; }
-.black { color: #000000; font-weight: bold; }
+.black { color: #000; font-weight: bold; }
 .used { color: #9e9e9e; }
 </style>
 """, unsafe_allow_html=True)
