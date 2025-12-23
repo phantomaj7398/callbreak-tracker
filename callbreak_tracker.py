@@ -12,21 +12,20 @@ SAVE_FILE = "game_state.json"
 suits = ["♠", "♥", "♦", "♣"]
 ranks = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"]
 
-# ---------- CSS (MAXIMUM COMPRESSION + COLORS) ----------
+# ---------- CSS (WHITE BACKGROUND + CLEAN UI) ----------
 st.markdown("""
 <style>
-/* ===== FORCE WHITE BACKGROUND ===== */
 html, body, [data-testid="stApp"] {
     background-color: #ffffff !important;
     color: #000000 !important;
 }
 
-/* ===== ROUND TEXT COLORS ===== */
-.red { color: #c62828; font-weight: bold; }
-.black { color: #000000; font-weight: bold; }
-.used { color: #9e9e9e; }
+/* compact rounds */
+div[data-testid="stMarkdown"] p {
+    margin-bottom: 0.1rem;
+}
 
-/* ===== BUTTONS: TEXT-ONLY LOOK ===== */
+/* remove button boxes */
 button {
     background: transparent !important;
     border: none !important;
@@ -36,24 +35,15 @@ button {
     color: #000000 !important;
 }
 
-/* remove hover / focus visuals */
-button:hover,
-button:focus,
-button:active {
+button:hover, button:focus, button:active {
     background: transparent !important;
     outline: none !important;
-    box-shadow: none !important;
 }
 
-/* ===== TIGHT GRID ===== */
+/* tighten grid spacing */
 div[data-testid="column"] {
     padding-left: 0.05rem !important;
     padding-right: 0.05rem !important;
-}
-
-/* ===== REDUCE LINE GAPS ===== */
-div[data-testid="stMarkdown"] p {
-    margin-bottom: 0.1rem;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -94,12 +84,13 @@ def undo():
         save_state()
         st.rerun()
 
-def card_class(card):
-    if card in st.session_state.plays:
-        return "used"
-    return "red" if card[-1] in ["♥", "♦"] else "black"
+def colored_card(card):
+    suit = card[-1]
+    rank = card[:-1]
+    color = "red" if suit in ["♥", "♦"] else "black"
+    return f"<span style='color:{color}; font-weight:bold'>{rank}{suit}</span>"
 
-# ---------- ROUNDS (TOP, FAST RENDER) ----------
+# ---------- ROUNDS (COLORED CORRECTLY) ----------
 total_rounds = (len(st.session_state.plays) + 3) // 4
 
 for r in range(total_rounds):
@@ -107,14 +98,11 @@ for r in range(total_rounds):
     cards = st.session_state.plays[start:start + 4]
     if cards:
         st.markdown(
-            " ".join(
-                f"<span class='{card_class(c)}'>{c}</span>"
-                for c in cards
-            ),
+            " ".join(colored_card(c) for c in cards),
             unsafe_allow_html=True
         )
 
-# ---------- CARD GRID (4 × 13, TIGHT) ----------
+# ---------- CARD GRID (4 × 13) ----------
 st.divider()
 
 for suit in suits:
@@ -135,6 +123,7 @@ for suit in suits:
 # ---------- CONTROLS ----------
 st.divider()
 c1, c2 = st.columns(2)
+
 c1.button("↩ Undo", on_click=undo)
 
 def reset_game():
