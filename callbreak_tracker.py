@@ -2,6 +2,7 @@ import streamlit as st
 import json
 import os
 
+# ---------------- CONFIG ----------------
 st.set_page_config(page_title="Callbreak Tracker", layout="centered")
 
 SAVE_FILE = "game_state.json"
@@ -13,7 +14,7 @@ rank_power = {r: i for i, r in enumerate(ranks[::-1])}
 
 TRUMP = "♠"
 
-# ---------- CSS ----------
+# ---------------- CSS ----------------
 st.markdown("""
 <style>
 html, body, [data-testid="stApp"] {
@@ -31,19 +32,16 @@ div[data-testid="column"] {
     padding-left: 0.05rem !important;
     padding-right: 0.05rem !important;
 }
-div[data-testid="stMarkdown"] p {
-    margin-bottom: 0.1rem;
-}
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- SAVE / LOAD ----------
+# ---------------- SAVE / LOAD ----------------
 def save_state(plays):
     try:
         with open(SAVE_FILE, "w") as f:
             json.dump(plays, f)
     except Exception:
-        pass  # never crash UI due to IO
+        pass
 
 def load_state():
     if not os.path.exists(SAVE_FILE):
@@ -55,13 +53,13 @@ def load_state():
     except Exception:
         return []
 
-# ---------- INIT ----------
+# ---------------- INIT ----------------
 if "plays" not in st.session_state:
     st.session_state.plays = load_state()
 
 plays = st.session_state.plays
 
-# ---------- GAME LOGIC ----------
+# ---------------- GAME LOGIC ----------------
 def card_strength(card, lead_suit):
     rank, suit = card[:-1], card[-1]
     if suit == TRUMP:
@@ -76,7 +74,7 @@ def determine_winner(cards, starter):
     winner_offset = strengths.index(max(strengths))
     return (starter + winner_offset) % 4
 
-# ---------- REBUILD ROUNDS (PURE FUNCTION) ----------
+# ---------------- REBUILD ROUNDS ----------------
 def rebuild_rounds(plays):
     rounds = []
     starter = 0  # A always starts first round
@@ -85,27 +83,27 @@ def rebuild_rounds(plays):
     while i < len(plays):
         chunk = plays[i:i + 4]
 
-        if len(chunk) < 4:
-            rounds.append({
-                "starter": starter,
-                "cards": chunk
-            })
-            break
+        cards = []
+        for idx, card in enumerate(chunk):
+            player = players[(starter + idx) % 4]
+            cards.append((player, card))
 
-        winner = determine_winner(chunk, starter)
         rounds.append({
             "starter": starter,
-            "cards": chunk
+            "cards": cards
         })
 
-        starter = winner
+        if len(chunk) == 4:
+            winner = determine_winner([c for _, c in cards], starter)
+            starter = winner
+
         i += 4
 
     return rounds
 
 rounds = rebuild_rounds(plays)
 
-# ---------- HELPERS ----------
+# ---------------- HELPERS ----------------
 def add_card(card):
     if card not in plays:
         plays.append(card)
@@ -129,13 +127,13 @@ def reset():
 def used_cards():
     return set(plays)
 
-# ---------- DISPLAY ----------
-for r in rounds:
+# ---------------- DISPLAY ROUNDS ----------------
+for idx, r in enumerate(rounds, start=1):
     starter_letter = players[r["starter"]]
-    cards = " ".join(r["cards"])
-    st.markdown(f"**{starter_letter} →** {cards}")
+    line = "  ".join([f"{p} → {c}" for p, c in r["cards"]])
+    st.markdown(f"**Round {idx} (Start: {starter_letter})**  \n{line}")
 
-# ---------- CARD GRID ----------
+# ---------------- CARD GRID ----------------
 st.divider()
 used = used_cards()
 
@@ -151,7 +149,7 @@ for suit in suits:
             args=(card,)
         )
 
-# ---------- CONTROLS ----------
+# ---------------- CONTROLS ----------------
 st.divider()
 c1, c2 = st.columns(2)
 c1.button("↩ Undo", on_click=undo)
