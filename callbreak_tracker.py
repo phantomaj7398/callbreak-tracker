@@ -28,10 +28,6 @@ button {
     padding: 0.1rem !important;
     font-size: 0.95rem !important;
 }
-div[data-testid="column"] {
-    padding-left: 0.05rem !important;
-    padding-right: 0.05rem !important;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -74,10 +70,10 @@ def determine_winner(cards, starter):
     winner_offset = strengths.index(max(strengths))
     return (starter + winner_offset) % 4
 
-# ---------------- REBUILD ROUNDS ----------------
+# ---------------- ROUNDS ----------------
 def rebuild_rounds(plays):
     rounds = []
-    starter = 0  # A always starts first round
+    starter = 0  # A starts first round
     i = 0
 
     while i < len(plays):
@@ -88,14 +84,10 @@ def rebuild_rounds(plays):
             player = players[(starter + idx) % 4]
             cards.append((player, card))
 
-        rounds.append({
-            "starter": starter,
-            "cards": cards
-        })
+        rounds.append(cards)
 
         if len(chunk) == 4:
-            winner = determine_winner([c for _, c in cards], starter)
-            starter = winner
+            starter = determine_winner([c for _, c in cards], starter)
 
         i += 4
 
@@ -103,54 +95,37 @@ def rebuild_rounds(plays):
 
 rounds = rebuild_rounds(plays)
 
-# ---------------- HELPERS ----------------
-def add_card(card):
-    if card not in plays:
-        plays.append(card)
-        save_state(plays)
-        st.rerun()
+# ---------------- CARD RENDERING ----------------
+def render_card(card):
+    suit = card[-1]
+    color = "red" if suit in ["♥", "♦"] else "black"
+    return f"<span style='color:{color}; font-weight:600'>{card}</span>"
 
-def undo():
-    if plays:
-        plays.pop()
-        save_state(plays)
-        st.rerun()
-
-def reset():
-    try:
-        if os.path.exists(SAVE_FILE):
-            os.remove(SAVE_FILE)
-    finally:
-        st.session_state.clear()
-        st.rerun()
-
-def used_cards():
-    return set(plays)
-
-# ---------------- DISPLAY ROUNDS ----------------
-for idx, r in enumerate(rounds, start=1):
-    starter_letter = players[r["starter"]]
-    line = "  ".join([f"{p} → {c}" for p, c in r["cards"]])
-    st.markdown(f"**Round {idx} (Start: {starter_letter})**  \n{line}")
+# ---------------- DISPLAY ----------------
+for cards in rounds:
+    line = " &nbsp;&nbsp; ".join(
+        [f"<b>{p}</b> → {render_card(c)}" for p, c in cards]
+    )
+    st.markdown(line, unsafe_allow_html=True)
 
 # ---------------- CARD GRID ----------------
 st.divider()
-used = used_cards()
+used = set(plays)
 
 for suit in suits:
-    cols = st.columns(len(ranks), gap="small")
+    cols = st.columns(len(ranks))
     for i, rank in enumerate(ranks):
         card = f"{rank}{suit}"
         cols[i].button(
             "❌" if card in used else card,
             key=card,
             disabled=card in used,
-            on_click=add_card,
-            args=(card,)
+            on_click=lambda c=card: (plays.append(c), save_state(plays), st.rerun())
         )
 
 # ---------------- CONTROLS ----------------
 st.divider()
 c1, c2 = st.columns(2)
-c1.button("↩ Undo", on_click=undo)
-c2.button("🔄 Reset", on_click=reset)
+
+c1.button("↩ Undo", on_click=lambda: (plays.pop(), save_state(plays), st.rerun()) if plays else None)
+c2.button("🔄 Reset", on_click=lambda: (os.remove(SAVE_FILE) if os.path.exists(SAVE_FILE) else None, st.session_state.clear(), st.rerun()))
