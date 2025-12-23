@@ -40,11 +40,20 @@ def save_state():
         json.dump(data, f)
 
 def load_state():
-    if os.path.exists(SAVE_FILE):
+    if not os.path.exists(SAVE_FILE):
+        return
+
+    try:
         with open(SAVE_FILE, "r") as f:
             data = json.load(f)
+
         st.session_state.plays = data.get("plays", [])
         st.session_state.trump = data.get("trump", "♠")
+
+    except (json.JSONDecodeError, ValueError):
+        # Corrupted or empty file → reset safely
+        st.session_state.plays = []
+        st.session_state.trump = "♠"
 
 # ---------- INIT ----------
 if "initialized" not in st.session_state:
